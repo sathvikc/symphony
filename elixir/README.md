@@ -13,7 +13,8 @@ This directory contains the current Elixir/OTP implementation of Symphony, based
 
 ## How it works
 
-1. Polls the configured tracker for candidate work (included adapters: Linear and GitHub Issues)
+1. Polls the configured tracker for candidate work (included adapters: Linear, GitHub Issues, and
+   Jira Cloud)
 2. Creates a workspace per issue
 3. Launches Codex in [App Server mode](https://developers.openai.com/codex/app-server/) inside the
    workspace
@@ -21,9 +22,10 @@ This directory contains the current Elixir/OTP implementation of Symphony, based
 5. Keeps Codex working on the issue until the work is done
 
 During app-server sessions, the selected tracker adapter may advertise provider-native tools. The
-Linear adapter serves `linear_graphql`; the GitHub Issues adapter serves `github_api`. Symphony
-executes those tools with configured host-side auth and removes declared tracker-token environment
-variables from the Codex child, so the agent does not need a second tracker login.
+Linear serves `linear_graphql`, GitHub Issues serves `github_api`, and Jira Cloud serves
+`jira_rest`. Symphony executes those tools with configured host-side auth and removes declared
+tracker-token environment variables from the Codex child, so the agent does not need a second
+tracker login.
 
 If a claimed issue moves to a terminal state (`Done`, `Closed`, `Cancelled`, or `Duplicate`),
 Symphony stops the active agent for that issue and cleans up matching workspaces.
@@ -252,6 +254,16 @@ codex:
   configured `$VAR` token names from the Codex child, and leaves raw tool access limited by that
   token's GitHub permissions.
 
+### Jira Cloud adapter
+
+- Config: use `tracker.kind: jira` with provider `base_url`, `email`, `api_token`, and required
+  `project_key`; the first three default to `JIRA_BASE_URL`, `JIRA_EMAIL`, and `JIRA_API_TOKEN`
+  and accept `$VAR`. Set explicit Jira-native `active_states` and `terminal_states`.
+- Issues and reads: candidate reads and ID refreshes stay scoped to the configured project and
+  requested statuses; `issue.id` is Jira's immutable ID and `issue.identifier` is the issue key.
+- Tool: `jira_rest` sends relative `/rest/api/3/` requests host-side with configured Basic auth,
+  strips token environment variables from Codex, and can reach whatever the Jira credential can.
+
 ## Web dashboard
 
 The observability UI now runs on a minimal Phoenix stack:
@@ -312,6 +324,18 @@ cd elixir
 export SYMPHONY_LIVE_GITHUB_REPO=owner/scratch-repo
 export GITHUB_TOKEN=...
 SYMPHONY_RUN_GITHUB_LIVE_E2E=1 mix test test/symphony_elixir/github_live_e2e_test.exs
+```
+
+Run the opt-in Jira Cloud live test against a disposable project whose credential can browse,
+create, comment on, transition, and delete issues:
+
+```bash
+cd elixir
+export JIRA_BASE_URL=https://your-site.atlassian.net
+export JIRA_EMAIL=...
+export JIRA_API_TOKEN=...
+export SYMPHONY_LIVE_JIRA_PROJECT_KEY=TEST
+SYMPHONY_RUN_JIRA_LIVE_E2E=1 mix test test/symphony_elixir/jira_live_e2e_test.exs
 ```
 
 ## FAQ
