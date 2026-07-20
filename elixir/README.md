@@ -13,8 +13,8 @@ This directory contains the current Elixir/OTP implementation of Symphony, based
 
 ## How it works
 
-1. Polls the configured tracker for candidate work (included adapters: Linear, GitHub Issues, and
-   Jira Cloud)
+1. Polls the configured tracker for candidate work (included adapters: Linear, GitHub Issues, Jira
+   Cloud, and Asana)
 2. Creates a workspace per issue
 3. Launches Codex in [App Server mode](https://developers.openai.com/codex/app-server/) inside the
    workspace
@@ -22,10 +22,10 @@ This directory contains the current Elixir/OTP implementation of Symphony, based
 5. Keeps Codex working on the issue until the work is done
 
 During app-server sessions, the selected tracker adapter may advertise provider-native tools. The
-Linear serves `linear_graphql`, GitHub Issues serves `github_api`, and Jira Cloud serves
-`jira_rest`. Symphony executes those tools with configured host-side auth and removes declared
-tracker-token environment variables from the Codex child, so the agent does not need a second
-tracker login.
+Linear serves `linear_graphql`, GitHub Issues serves `github_api`, Jira Cloud serves
+`jira_rest`, and Asana serves `asana_api`. Symphony executes those tools with configured
+host-side auth and removes declared tracker-token environment variables from the Codex child, so
+the agent does not need a second tracker login.
 
 If a claimed issue moves to a terminal state (`Done`, `Closed`, `Cancelled`, or `Duplicate`),
 Symphony stops the active agent for that issue and cleans up matching workspaces.
@@ -264,6 +264,17 @@ codex:
 - Tool: `jira_rest` sends relative `/rest/api/3/` requests host-side with configured Basic auth,
   strips token environment variables from Codex, and can reach whatever the Jira credential can.
 
+### Asana adapter
+
+- Config: use `tracker.kind: asana` with required `tracker.provider.project_gid`, optional
+  `endpoint` (default `https://app.asana.com/api/1.0`), and `api_key` (defaults to `ASANA_PAT` and
+  accepts `$VAR`); `active_states` and `terminal_states` are project section names.
+- Scope: Symphony polls tasks in the configured project, treats their section as state, and omits
+  deleted or out-of-project tasks during ID refreshes.
+- Tool: `asana_api` sends relative Asana REST requests host-side with the configured auth; Symphony
+  strips `ASANA_PAT` and configured token variables from the Codex child, while raw tool calls are
+  not limited to the configured project.
+
 ## Web dashboard
 
 The observability UI now runs on a minimal Phoenix stack:
@@ -336,6 +347,17 @@ export JIRA_EMAIL=...
 export JIRA_API_TOKEN=...
 export SYMPHONY_LIVE_JIRA_PROJECT_KEY=TEST
 SYMPHONY_RUN_JIRA_LIVE_E2E=1 mix test test/symphony_elixir/jira_live_e2e_test.exs
+```
+
+Run the opt-in Asana live E2E against disposable Asana resources:
+
+```bash
+cd elixir
+export ASANA_PAT=...
+export SYMPHONY_LIVE_ASANA_WORKSPACE_GID=...
+# Required only when the workspace is an organization:
+# export SYMPHONY_LIVE_ASANA_TEAM_GID=...
+SYMPHONY_RUN_ASANA_LIVE_E2E=1 mix test test/symphony_elixir/asana_live_e2e_test.exs
 ```
 
 ## FAQ

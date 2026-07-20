@@ -11,6 +11,7 @@ defmodule SymphonyElixir.Tracker do
   alias SymphonyElixir.Tracker.Issue
 
   @adapters %{
+    "asana" => SymphonyElixir.Asana.Adapter,
     "github" => SymphonyElixir.GitHub.Adapter,
     "jira" => SymphonyElixir.Jira.Adapter,
     "linear" => SymphonyElixir.Linear.Adapter,
